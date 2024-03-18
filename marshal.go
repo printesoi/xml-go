@@ -158,7 +158,10 @@ type Encoder struct {
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
-	e := &Encoder{printer{w: bufio.NewWriter(w)}}
+	e := &Encoder{printer{
+		w:                bufio.NewWriter(w),
+		nameSpaceBinding: NameSpaceBinding,
+	}}
 	e.p.encoder = e
 	return e
 }
@@ -169,6 +172,23 @@ func NewEncoder(w io.Writer) *Encoder {
 func (enc *Encoder) Indent(prefix, indent string) {
 	enc.p.prefix = prefix
 	enc.p.indent = indent
+}
+
+// AddNamespaceBinding forces binding a namespace url to a prefix for the
+// encoder only.
+func (enc *Encoder) AddNamespaceBinding(url string, prefix string) error {
+	return enc.p.nameSpaceBinding.Add(url, prefix)
+}
+
+// AddSkipNamespaceAttrForPrefix allows the encoder to skip adding the
+// xmlns:prefix="url" attribute for the specific url and namespace prefix. This
+// must only be used with AddNamespaceBinding and is useful if the document
+// will have multiple namespaces and we want to generate a smaller XML.
+func (enc *Encoder) AddSkipNamespaceAttrForPrefix(url string, prefix string) {
+	if enc.p.skipAttrNS == nil {
+		enc.p.skipAttrNS = make(map[string]string)
+	}
+	enc.p.skipAttrNS[url] = prefix
 }
 
 // Encode writes the XML encoding of v to the stream.
@@ -327,21 +347,23 @@ func (enc *Encoder) Close() error {
 }
 
 type printer struct {
-	w           *bufio.Writer
-	encoder     *Encoder
-	seq         int
-	indent      string
-	prefix      string
-	depth       int
-	indentedIn  bool
-	putNewline  bool
-	attrNS      map[string]string // map prefix -> name space
-	localAttrNS []Attr            // attrNS tags to render in current element
-	attrPrefix  map[string]string // map name space -> prefix
-	prefixes    []string
-	tags        []Name
-	closed      bool
-	err         error
+	w                *bufio.Writer
+	encoder          *Encoder
+	seq              int
+	indent           string
+	prefix           string
+	depth            int
+	indentedIn       bool
+	putNewline       bool
+	attrNS           map[string]string // map prefix -> name space
+	localAttrNS      []Attr            // attrNS tags to render in current element
+	attrPrefix       map[string]string // map name space -> prefix
+	skipAttrNS       map[string]string // map name space -> prefix
+	nameSpaceBinding hint
+	prefixes         []string
+	tags             []Name
+	closed           bool
+	err              error
 }
 
 // createAttrPrefix finds the name space prefix attribute to use for the given name space,
@@ -365,7 +387,7 @@ func (p *printer) createAttrPrefix(url string) string {
 		p.attrNS = make(map[string]string)
 	}
 
-	prefix := NameSpaceBinding.get(url)
+	prefix := p.nameSpaceBinding.get(url)
 	if p.attrNS[prefix] != "" {
 		// Name is taken. Find a better one.
 		for p.seq++; ; p.seq++ {
@@ -379,7 +401,9 @@ func (p *printer) createAttrPrefix(url string) string {
 	p.attrPrefix[url] = prefix
 	p.attrNS[prefix] = url
 
-	p.localAttrNS = append(p.localAttrNS, Attr{Name: Name{Local: "xmlns:" + prefix, Space: "xmlns:" + prefix}, Value: url})
+	if skipAttrNSPrefix, ok := p.skipAttrNS[url]; !ok || skipAttrNSPrefix != prefix {
+		p.localAttrNS = append(p.localAttrNS, Attr{Name: Name{Local: "xmlns:" + prefix, Space: "xmlns:" + prefix}, Value: url})
+	}
 
 	p.prefixes = append(p.prefixes, prefix)
 

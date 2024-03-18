@@ -5,6 +5,7 @@
 package xml
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -44,5 +45,38 @@ func TestClear(t *testing.T) {
 	NameSpaceBinding.Clear()
 	if NameSpaceBinding.get(url) == "xyz" {
 		t.Error("binding was not cleared")
+	}
+}
+
+func TestSkipNamespaceAttrForPrefix(t *testing.T) {
+	var b bytes.Buffer
+	enc := NewEncoder(&b)
+
+	prefix1, url1 := "ns1", "binding-test-example.com:ns1"
+	enc.AddNamespaceBinding(url1, prefix1)
+	enc.AddSkipNamespaceAttrForPrefix(url1, prefix1)
+
+	prefix2, url2 := "ns2", "binding-test-example.com:ns2"
+	enc.AddNamespaceBinding(url2, prefix2)
+	enc.AddSkipNamespaceAttrForPrefix(url2, prefix2)
+
+	type Person struct {
+		XMLName Name `xml:"binding-test-example.com:ns1 person"`
+		Id      int  `xml:"binding-test-example.com:ns2 id"`
+	}
+
+	v := &Person{Id: 42}
+
+	if err := enc.Encode(v); err != nil {
+		t.Error(err)
+	}
+	if err := enc.Close(); err != nil {
+		t.Error(err)
+	}
+
+	got := string(b.Bytes())
+	want := `<ns1:person><ns2:id>42</ns2:id></ns1:person>`
+	if string(got) != want {
+		t.Errorf("got `%s`, want `%s`", got, want)
 	}
 }

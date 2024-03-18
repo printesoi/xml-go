@@ -19,3 +19,47 @@ is marshaled to
   <ns2:phone xmlns:ns2="http://example.com/ns2">123</ns2:phone>
 </ns1:person>
 ```
+
+## Example 2
+
+Skip adding xmlns:prefix="url":
+
+```go
+type Ambassador struct {
+	XMLName xml.Name `xml:"example.com:ns1 ambassador"`
+	Name    string   `xml:"name"`
+	Origin  string   `xml:"example.com:ns2 origin,omitempty"`
+}
+
+var b bytes.Buffer
+enc := NewEncoder(&b)
+
+prefix1, url1 := "ns1", "example.com:ns1"
+enc.AddNamespaceBinding(url1, prefix1)
+enc.AddSkipNamespaceAttrForPrefix(url1, prefix1)
+
+prefix2, url2 := "ns2", "example.com:ns2"
+enc.AddNamespaceBinding(url2, prefix2)
+enc.AddSkipNamespaceAttrForPrefix(url2, prefix2)
+
+v := &Ambassador{
+    Name: "Mahit Dzmare",
+    Origin: "Lsel Station",
+}
+
+if err := enc.Encode(v); err != nil {
+    // error
+}
+if err := enc.Close(); err != nil {
+    // error
+}
+
+ambassadorXML := b.Bytes()
+```
+is marshaled to
+```xml
+<ns1:ambassador>
+  <ns1:name>Mahit Dzmare</ns1:name>
+  <ns2:origin>Lsel Station</ns2:origin>
+</ns1:ambassador>
+```
