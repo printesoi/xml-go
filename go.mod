@@ -1,3 +1,3 @@
-module github.com/m29h/xml
+module github.com/printesoi/xml-go
 
 go 1.21.1
