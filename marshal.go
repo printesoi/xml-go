@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding"
-
 	"errors"
 	"fmt"
 	"io"
@@ -160,7 +159,7 @@ type Encoder struct {
 func NewEncoder(w io.Writer) *Encoder {
 	e := &Encoder{printer{
 		w:                bufio.NewWriter(w),
-		nameSpaceBinding: NameSpaceBinding,
+		nameSpaceBinding: NameSpaceBinding.clone(),
 	}}
 	e.p.encoder = e
 	return e

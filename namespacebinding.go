@@ -2,6 +2,7 @@ package xml
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 )
 
@@ -69,4 +70,11 @@ func (h *hint) get(url string) string {
 		prefix = "_" + prefix
 	}
 	return prefix
+}
+
+// clone returns a shallow copy of the nsPrefixHint map
+func (h hint) clone() hint {
+	return hint{
+		nsPrefixHint: maps.Clone(h.nsPrefixHint),
+	}
 }
